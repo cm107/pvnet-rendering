@@ -171,16 +171,29 @@ class Renderer(object):
                              [0.,    0.,    1.]])
     }
 
-    def __init__(self, class_type):
+    def __init__(
+        self, class_type: str,
+        data_dir: str=None,
+        renders_dir: str=None,
+        obj_path: str=None
+    ):
         self.class_type = class_type
-        self.bg_imgs_path = os.path.join(cfg.DATA_DIR, 'bg_imgs.npy')
-        self.poses_path = os.path.join(cfg.DATA_DIR, 'blender_poses', '{}_poses.npy').format(class_type)
-        self.output_dir_path = os.path.join(cfg.LINEMOD,'renders/{}').format(class_type)
+        self.data_dir = cfg.DATA_DIR if data_dir is None else data_dir
+        self.renders_dir = f'{cfg.LINEMOD}/renders' if renders_dir is None else renders_dir
+        self.obj_path = os.path.join(cfg.LINEMOD,'{}/{}.ply').format(class_type, class_type) if obj_path is None else obj_path
+        
+        # Blender Related
         self.blender_path = cfg.BLENDER_PATH
-        self.blank_blend = os.path.join(cfg.DATA_DIR, 'blank.blend')
         self.py_path = os.path.join(cfg.BLENDER_DIR, 'render_backend.py')
-        self.obj_path = os.path.join(cfg.LINEMOD,'{}/{}.ply').format(class_type, class_type)
-        self.plane_height_path = os.path.join(cfg.DATA_DIR, 'plane_height.pkl')
+
+        # Saved to data_dir
+        self.bg_imgs_path = os.path.join(self.data_dir, 'bg_imgs.npy')
+        self.poses_path = os.path.join(self.data_dir, 'blender_poses', '{}_poses.npy').format(class_type)
+        self.blank_blend = os.path.join(self.data_dir, 'blank.blend')
+        self.plane_height_path = os.path.join(self.data_dir, 'plane_height.pkl')
+
+        # Saved to renders_dir
+        self.output_dir_path = f'{self.renders_dir}/{class_type}'
 
     def get_bg_imgs(self):
         if os.path.exists(self.bg_imgs_path):
@@ -247,7 +260,7 @@ class Renderer(object):
         3. call the blender to render images
         """
         self.get_bg_imgs()
-        self.sample_poses()
+        # self.sample_poses()
 
         if not os.path.exists(self.output_dir_path):
             os.makedirs(self.output_dir_path)

@@ -1,3 +1,6 @@
 __pycache__
 /data
-
+*.pkl
+*.jpg
+custom_data
+custom_renders

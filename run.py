@@ -11,8 +11,16 @@ def run_rendering():
     from blender.render_utils import Renderer, YCBRenderer
     # YCBRenderer.multi_thread_render()
     # renderer = YCBRenderer('037_scissors')
-    renderer=Renderer('cat')
-    renderer.run()
+    linemod_cls_names = [
+        'ape', 'cam', 'cat',
+        'duck', 'glue', 'iron',
+        'phone', 'benchvise', 'can',
+        'driller', 'eggbox', 'holepuncher',
+        'lamp'
+    ]
+    for target in linemod_cls_names:
+        renderer=Renderer(target)
+        renderer.run()
 
 
 def run_fuse():

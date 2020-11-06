@@ -66,7 +66,6 @@ def obj_location(dist, azi, ele):
 
 
 def setup_light(scene):
-    # bpy.ops.object.select_by_type(type='LIGHT')
     bpy.ops.object.select_by_type(type='LAMP')
     bpy.ops.object.delete(use_global=False)
 
@@ -76,13 +75,10 @@ def setup_light(scene):
         dist = np.random.uniform(1, 2)
         x, y, z = obj_location(dist, azi, ele)
         lamp_name = 'Lamp{}'.format(i)
-        # lamp_data = bpy.data.lights.new(name=lamp_name, type='POINT')
         lamp_data = bpy.data.lamps.new(name=lamp_name, type='POINT')
         lamp_data.energy = np.random.uniform(0.5, 2)
         lamp = bpy.data.objects.new(name=lamp_name, object_data=lamp_data)
         lamp.location = (x, y, z)
-        
-        # bpy.context.collection.objects.link(lamp)
         scene.objects.link(lamp)
 
 
@@ -95,9 +91,8 @@ def setup():
     bpy.context.scene.render.resolution_x = cfg.WIDTH
     bpy.context.scene.render.resolution_y = cfg.HEIGHT
     bpy.context.scene.render.resolution_percentage = 100
-#    bpy.context.scene.render.alpha_mode = 'TRANSPARENT'
+    bpy.context.scene.render.alpha_mode = 'TRANSPARENT'
     bpy.context.scene.render.image_settings.color_mode = 'RGBA'
-#    bpy.context.scene.render.film_transparent = True
 
     # modify the camera intrinsic matrix
     # bpy.data.cameras['Camera'].sensor_width = 39.132693723430386
@@ -138,10 +133,9 @@ def parent_obj_to_camera(b_camera):
     b_empty.location = origin
     b_camera.parent = b_empty  # setup parenting
 
-    # ctx = bpy.context
-    # print(dir(ctx))
-    # ctx.collection.objects.link(b_empty)
-    # ctx.view_layer.objects.active = b_empty
+    scn = bpy.context.scene
+    scn.objects.link(b_empty)
+    scn.objects.active = b_empty
     return b_empty
 
 
@@ -261,6 +255,27 @@ def add_shader_on_world():
     bpy.data.worlds['World'].node_tree.links.new(env_node.outputs['Color'], back_node.inputs['Color'])
 
 
+# def add_shader_on_ply_object(obj):
+#     bpy.ops.material.new()
+#     material = list(bpy.data.materials)[0]
+
+#     material.use_nodes = True
+#     material.node_tree.links.clear()
+
+#     mat_out = material.node_tree.nodes['Material Output']
+#     diffuse_node = material.node_tree.nodes['Diffuse BSDF']
+#     gloss_node = material.node_tree.nodes.new(type='ShaderNodeBsdfGlossy')
+#     attr_node = material.node_tree.nodes.new(type='ShaderNodeAttribute')
+
+#     material.node_tree.nodes.remove(diffuse_node)
+#     attr_node.attribute_name = 'Col'
+#     material.node_tree.links.new(attr_node.outputs['Color'], gloss_node.inputs['Color'])
+#     material.node_tree.links.new(gloss_node.outputs['BSDF'], mat_out.inputs['Surface'])
+
+#     obj.data.materials.append(material)
+
+#     return material
+
 def add_shader_on_ply_object(obj):
     bpy.ops.material.new()
     material = list(bpy.data.materials)[0]
@@ -269,7 +284,7 @@ def add_shader_on_ply_object(obj):
     material.node_tree.links.clear()
 
     mat_out = material.node_tree.nodes['Material Output']
-    diffuse_node = material.node_tree.nodes['Diffuse BSDF']
+    diffuse_node = material.node_tree.nodes['Principled BSDF']
     # gloss_node = material.node_tree.nodes.new(type='ShaderNodeBsdfGlossy')
     # attr_node = material.node_tree.nodes.new(type='ShaderNodeAttribute')
     image_node = material.node_tree.nodes.new(type='ShaderNodeTexImage')
@@ -280,8 +295,8 @@ def add_shader_on_ply_object(obj):
     material.node_tree.links.new(diffuse_node.outputs['BSDF'], mat_out.inputs['Surface'])
 
 
-    material.node_tree.links.new(image_node.outputs['Color'], diffuse_node.inputs['Color'])
-    img_path = 'hsr_material.001.jpg'
+    material.node_tree.links.new(image_node.outputs['Color'], diffuse_node.inputs['Base Color'])
+    img_path = '/home/clayton/workspace/git/pvnet-rendering/hsr_material.001.jpg'
     img_name = os.path.basename(img_path)
     bpy.data.images.load(img_path)
     image_node.image = bpy.data.images[img_name]
@@ -289,7 +304,6 @@ def add_shader_on_ply_object(obj):
     obj.data.materials.append(material)
 
     return material
-
 
 def add_shader_on_obj_object(obj):
     bpy.ops.material.new()
@@ -343,8 +357,7 @@ def add_shader_on_plane(plane):
 def set_material_node_parameters(material):
     nodes = material.node_tree.nodes
     if os.path.basename(args.input).endswith('.ply'):
-        nodes['Diffuse BSDF'].inputs['Roughness'].default_value = np.random.uniform(0.3, 0.5)
-        # nodes['Diffuse BSDF'].inputs['Metallic'].default_value = np.random.uniform(0.7, 1)
+        nodes['Glossy BSDF'].inputs['Roughness'].default_value = np.random.uniform(0.8, 1)
     else:
         nodes['Diffuse BSDF'].inputs['Roughness'].default_value = np.random.uniform(0, 1)
 
@@ -361,7 +374,6 @@ def batch_render_with_linemod(args, camera):
     bpy.context.scene.cycles.blur_glossy = 3.0
     bpy.context.scene.cycles.samples = 100
 
-    # bpy.context.preferences.addons['cycles'].preferences.compute_device_type = "CUDA"
     bpy.context.user_preferences.addons['cycles'].preferences.compute_device_type = "CUDA"
     bpy.context.scene.cycles.device = 'GPU'
 
@@ -377,11 +389,12 @@ def batch_render_with_linemod(args, camera):
     # plane.location = [0, 0, args.height]
     # plane.scale = [0.28, 0.28, 0.28]
     # add_shader_on_plane(plane)
+
     bg_imgs = np.load(args.bg_imgs).astype(np.str)
     bg_imgs = np.random.choice(bg_imgs, size=cfg.NUM_SYN)
     poses = np.load(args.poses_path)
     begin_num_imgs = len(glob.glob(os.path.join(args.output_dir, '*.jpg')))
-    for i in range(0, cfg.NUM_SYN):
+    for i in range(begin_num_imgs, cfg.NUM_SYN):
         # overlay an background image and place the object
         img_name = os.path.basename(bg_imgs[i])
         bpy.data.images.load(bg_imgs[i])
@@ -416,7 +429,7 @@ def batch_render_ycb(args, camera):
     bpy.context.scene.cycles.blur_glossy = 3.0
     bpy.context.scene.cycles.samples = 100
 
-    bpy.context.preferences.addons['cycles'].preferences.compute_device_type = "CUDA"
+    bpy.context.user_preferences.addons['cycles'].preferences.compute_device_type = "CUDA"
     bpy.context.scene.cycles.device = 'GPU'
 
     for mesh in bpy.data.meshes:
